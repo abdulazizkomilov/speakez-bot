@@ -24,29 +24,29 @@
 ## 🖼️ Bot Screenshots
 
 ### ▶️ Start Screen
-![Start Screen](images/start.jpeg)
+<img src="images/speaking.jpeg" alt="Start Screen" width="250"/>
 
 ### 🎧 Speaking Mode
-![Speaking Mode](images/speaking.jpeg)
+<img src="images/speaking.jpeg" alt="Speaking Mode" width="250"/>
 
 ### 💳 Payment Screen
-![Payment Screen](images/payment.jpeg)
+<img src="images/payment.jpeg" alt="Payment Screen" width="250"/>
 
 ---
 
 ## 📆 System Architecture
 
 ### 📏 Full System Architecture
-![Full System Architecture](images/full.png)
+<img src="images/full.png" alt="Full System Architecture" width="250"/>
 
 ### 🚀 Microservice Architecture
-![Microservice Architecture](images/services.png)
+<img src="images/services.png" alt="Microservice Architecture" width="250"/>
 
 ### 🤖 Bot Architecture
-![Bot Architecture](images/bot.png)
+<img src="images/bot.png" alt="Bot Architecture" width="250"/>
 
 ### 💳 Payment Architecture
-![Payment Architecture](images/payment.png)
+<img src="images/payment.png" alt="Payment Architecture" width="250"/>
 
 ---
 
