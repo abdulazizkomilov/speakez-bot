@@ -1,0 +1,13 @@
+allowed_telegram_usernames: [ ]
+new_dialog_timeout: 600
+enable_message_streaming: true
+return_n_generated_images: 1
+image_size: "512x512"
+n_chat_modes_per_page: 5
+
+# prices
+chatgpt_price_per_1000_tokens: 0.002
+gpt_price_per_1000_tokens: 0.02
+whisper_price_per_1_min: 0.006
+
+admins_list: [ 12345 ]

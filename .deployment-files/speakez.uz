@@ -1,0 +1,22 @@
+server {
+    listen 80;
+    server_name <domain>;
+
+    root /home/<user>/speakez/dist;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Favicon and other assets
+    location = /favicon.ico {
+        return 204;
+    }
+
+    # Error handling for 500/502/503 errors
+    error_page 500 502 503 504 /50x.html;
+    location = /50x.html {
+        root /usr/share/nginx/html;
+    }
+}

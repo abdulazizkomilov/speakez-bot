@@ -1,0 +1,91 @@
+docker-compose --env-file .env up -d --build --remove-orphans
+
+docker-compose --env-file .env build --no-cache  # build no cache
+
+docker-compose up -d redis  # rebuild
+
+docker system prune -f
+docker container prune -f
+docker image prune -a -f
+docker system prune -a -f
+
+
+docker-compose down  # shut down
+
+
+################### MONGO ###################
+
+docker exec -it mongo mongosh -u <user> -p <password> --authenticationDatabase admin
+
+show dbs  # show databases
+
+use chatgpt_telegram_bot  # use database
+
+show collections  # show collections
+
+db.user.find().pretty()  # show all users
+
+db.user.updateOne(
+    { _id: <id> }, 
+    { $set: { invited_users: 0 } }
+)
+
+db.user.deleteOne({ _id: NumberLong("<id>") })
+
+
+
+################### SWARM ###################
+
+docker stack deploy -c docker-swarm.yml speakez
+
+docker stack services speakez
+
+docker service logs speakez_bot
+
+docker stack rm speakez
+
+
+
+################### REDIS ###################
+
+docker exec -it redis redis-cli -p 6380 FLUSHALL  # flush all data
+
+docker exec -it redis redis-cli -p 6380 CONFIG SET stop-writes-on-bgsave-error no
+
+docker exec -it redis redis-cli -p 6380 CONFIG SET save ""
+docker exec -it redis redis-cli -p 6380 CONFIG SET appendonly no
+docker exec -it redis redis-cli -p 6380 CONFIG REWRITE
+
+
+################### BACKUP ###################
+
+docker exec -t <container_id> mongodump \
+  --out /data/backup \
+  --username <user> \
+  --password <password> \
+  --authenticationDatabase admin
+
+
+docker cp <container_id>:/data/backup ./mongo_backup
+
+
+scp -i ~/.ssh/id_mata -r <user>@<ip>:/home/<user>/mongo_backup .
+
+
+# restore backup
+
+docker exec mongo mongosh -u <user> -p <password> --authenticationDatabase admin \
+  --eval "db.getSiblingDB('chatgpt_telegram_bot').user.drop()"
+
+docker exec <container_id> rm -rf chatgpt_telegram_bot
+
+docker cp mongo_backup/chatgpt_telegram_bot mongo:/chatgpt_telegram_bot
+
+docker exec mongo mongorestore \
+  --username <user> \
+  --password <password> \
+  --authenticationDatabase admin \
+  --db chatgpt_telegram_bot \
+  --collection user \
+  --drop \
+  /chatgpt_telegram_bot/user.bson

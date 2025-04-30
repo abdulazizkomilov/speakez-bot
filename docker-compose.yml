@@ -1,0 +1,189 @@
+version: "3"
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper
+    user: "0:0"
+    restart: always
+    networks:
+      - broker-bot
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD", "zookeeper-shell", "localhost:2181", "ls", "/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka
+    user: "0:0"
+    networks:
+      - broker-bot
+    restart: always
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_MESSAGE_MAX_BYTES: 157286400
+      KAFKA_REPLICA_FETCH_MAX_BYTES: 157286400
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+  
+  kafdrop:
+    image: obsidiandynamics/kafdrop:3.27.0
+    networks:
+      - broker-bot
+    depends_on:
+      - kafka
+      - zookeeper
+    ports:
+      - 19000:9000
+    environment:
+      KAFKA_BROKERCONNECT: kafka:29092
+  
+  kafka-setup:
+    image: confluentinc/cp-kafka:latest
+    restart: "no"
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - broker-bot
+    command: >
+      sh -c "kafka-topics --create --topic telegram-messages --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:29092"
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --port 6380
+    container_name: redis
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6380", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - broker-bot
+    ports:
+      - "6380:6380"
+
+  mongo:
+    image: mongo:7
+    container_name: mongo
+    user: "0:0"
+    restart: always
+    ports:
+      - "27017:27017"
+    networks:
+      - broker-bot
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@127.0.0.1:27017", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  bot:
+    container_name: bot
+    build:
+      context: .
+      dockerfile: Dockerfile
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: "always"
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      kafka-setup:
+        condition: service_completed_successfully
+    networks:
+      - broker-bot
+
+  main:
+    container_name: main
+    build:
+      context: .
+      dockerfile: Dockerfile-main
+    restart: "always"
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      kafka-setup:
+        condition: service_completed_successfully
+      bot:
+        condition: service_healthy
+    networks:
+      - broker-bot
+
+  celery:
+    container_name: celery
+    build:
+      context: .
+      dockerfile: Dockerfile-celery
+    restart: "always"
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      kafka-setup:
+        condition: service_completed_successfully
+      bot:
+        condition: service_healthy
+    networks:
+      - broker-bot
+
+networks:
+  broker-bot:
+    name: broker-bot
+    external: true
+
+volumes:
+  mongo-data:
